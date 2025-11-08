@@ -17,7 +17,7 @@
 4.  **读写区间划分**：通过 `m_readIdx` 和 `m_writeIdx` 明确划分区间，`[m_readIdx, m_writeIdx)` 为可读区间，`[m_writeIdx, m_buffer.size())` 为可写区间。
 ```sql
  |------ 已读区 ------|------ 可读区 ------|------ 可写区 ------|
- ^                   ^                    ^                   ^
+ ^                    ^                    ^                   ^
  begin()           m_readIdx            m_writeIdx         m_buffer.size()
 
 ```
