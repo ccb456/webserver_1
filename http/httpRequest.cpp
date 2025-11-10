@@ -338,3 +338,13 @@ string HttpRequest::getPostByKey(const char* key) const
 
     return "";
 }
+
+bool HttpRequest::isKeepAlive() const
+{
+    if(m_header.count("Connection"))
+    {
+        return m_header.find("Connection")->second == "keep-alive" && m_version == "1.1";
+    }
+
+    return false;
+}
