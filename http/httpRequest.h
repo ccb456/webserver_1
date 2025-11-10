@@ -6,6 +6,7 @@
 #include <string>
 #include <regex>
 #include <cerrno>
+#include <mysql/mysql.h>
 
 #include "../buffer/buffer.h"
 
@@ -74,15 +75,15 @@ private:
 
 
 private:
-    CHECK_STATE curState;   // 记录当前状态
+    CHECK_STATE m_curState;   // 记录当前状态
 
     string m_mthod;
     string m_path;
     string m_version;
-    string body;
+    string m_body;
 
     std::unordered_map<string, string> m_header;    // 存储请求头键值对
-    std::unordered_map<string, string> userInfo;    // 存在用户名和密码键值对
+    std::unordered_map<string, string> m_userInfo;    // 存在用户名和密码键值对
 
     static const std::unordered_set<string> DEFAULT_HTML;       // 存储默认的HTML路径
     static const std::unordered_map<string, int> DEFAULT_HTML_TAG;      // 存储路径与标签映射关系
