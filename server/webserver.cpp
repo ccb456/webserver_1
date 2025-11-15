@@ -124,3 +124,206 @@ void Webserver::run()
         }
     }
 }
+
+void Webserver::sendError(int fd, const char* info)
+{
+    assert(fd > 0);
+    int len = send(fd, info, strlen(info), 0);
+    if(len < 0)
+    {
+
+    } 
+    close(fd);
+}
+
+void Webserver::closeConn(HttpConn* client)
+{
+    assert(client);
+    m_epoller->removeFd(client->getFd());
+    client->closeConn();
+}
+
+void Webserver::addClnt(int fd, sockaddr_in addr)
+{
+    assert(fd > 0);
+    m_users[fd].init(fd, addr);
+    if(m_timeout > 0)
+    {
+        // 添加定时器
+    }
+
+    m_epoller->addFd(fd, EPOLLIN | m_clntEvent);
+    setnoblock(fd);
+}
+
+void Webserver::dealListen()
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+
+    do
+    {
+        int fd = accept(m_listenFd, (struct sockaddr*)&addr, &len);
+        if(fd < 0)
+        {
+            return;
+        }
+        else if(HttpConn::userCount >= MAX_FD)
+        {
+            sendError(fd, "Server busy!");
+            return;
+        }
+
+        addClnt(fd, addr);
+
+    } while (m_listenEvent & EPOLLET);
+    
+}
+
+void Webserver::dealRead(HttpConn* client)
+{
+    assert(client);
+    extentTime(client);
+
+    // 线程池添加任务
+}
+
+void Webserver::dealWrite(HttpConn* client)
+{
+    assert(client);
+    extentTime(client);
+    // 线程池添加任务
+}
+
+void Webserver::extentTime(HttpConn* client)
+{
+    assert(client);
+    if(m_timeout > 0)
+    {
+        // 调整时间
+    }
+}
+
+void Webserver::onRead(HttpConn* client)
+{
+    assert(client);
+    int ret = -1;
+    int readErrno = 0;
+
+    ret = client->readFromClnt(&readErrno);
+
+    if(ret < 0 && readErrno != EAGAIN)
+    {
+        closeConn(client);
+
+        return;
+    }
+
+    onProcess(client);
+}
+
+void Webserver::onProcess(HttpConn* client)
+{
+    if(client->process())
+    {
+        m_epoller->modFd(client->getFd(), m_clntEvent | EPOLLOUT);
+    }
+    else
+    {
+        m_epoller->modFd(client->getFd(), m_clntEvent | EPOLLIN);
+    }
+}
+
+void Webserver::onWrite(HttpConn* client)
+{
+    assert(client);
+    int ret = -1;
+    int writeErrno = 0;
+
+    ret = client->writeToClnt(&writeErrno);
+    if(client->toWriteBytes() == 0)
+    {
+        /* 传输完成 */
+        if(client->isKeepAlive())
+        {
+            onProcess(client);
+            return;
+        }
+    }
+    else if(ret < 0)
+    {
+        if(writeErrno == EAGAIN)
+        {
+            m_epoller->modFd(client->getFd(), m_clntEvent | EPOLLOUT);
+            return;
+        }
+    }
+
+    closeConn(client);
+}
+
+bool Webserver::initSocket()
+{
+    int ret;
+    struct sockaddr_in addr;
+
+    if(m_port > 65535 || m_port < 1024)
+    {
+        return false;
+    }
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(m_port);
+
+    struct linger optLinger = { 0 };
+    if(m_openLinger)
+    {
+        /* 优雅关闭: 直到所剩数据发送完毕或超时 */
+        optLinger.l_onoff = 1;
+        optLinger.l_linger = 1;
+    }
+
+    m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
+    if(m_listenFd < 0)
+    {
+        return false;
+    }
+
+    ret = setsockopt(m_listenFd, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
+    if(ret < 0)
+    {
+        close(m_listenFd);
+        return false;
+    }
+
+    ret = bind(m_listenFd, (struct sockaddr*)&addr, sizeof(addr));
+    if(ret < 0)
+    {
+        close(m_listenFd);
+        return false;
+    }
+
+    ret = listen(m_listenFd, 6);
+    if(ret < 0)
+    {
+        close(m_listenFd);
+        return false;
+    }
+
+    ret = m_epoller->addFd(m_listenFd, m_listenEvent | EPOLLIN);
+    if(ret == 0)
+    {
+        close(m_listenFd);
+        return false;
+    }
+
+    setnoblock(m_listenFd);
+    return true;
+}
+
+int Webserver::setnoblock(int fd)
+{
+    assert(fd > 0);
+    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFD, 0) | O_NONBLOCK);
+}
