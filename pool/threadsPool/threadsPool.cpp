@@ -212,7 +212,7 @@ void ThreadsPool::work()
 
     while (true) 
     {
-        std::function<void()> task;
+        cb_fun task;
 
         {   // 获取任务的临界区
             std::unique_lock<std::mutex> lk(m_queueMtx);

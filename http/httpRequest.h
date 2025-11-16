@@ -7,12 +7,12 @@
 #include <regex>
 #include <cerrno>
 #include <mysql/mysql.h>
+#include <iostream>
 
 #include "../buffer/buffer.h"
+#include "../pool/sqlConnsPool/dbConnsPool.h"
 
 using std::string;
-
-
 
 class HttpRequest
 {

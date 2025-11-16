@@ -26,12 +26,16 @@ void HttpConn::init(int fd, const sockaddr_in& addr)
     m_writeBuff.clear();
     m_isClose = false;
 
+#ifdef debug
+        std::cout << "Http init for client [" << fd << "]." << std::endl;
+#endif 
+
 }
 
 void HttpConn::closeConn()
 {
     m_response.unmap();
-    if(m_isClose == false)
+    if(!m_isClose)
     {
         m_isClose = true;
         --userCount;

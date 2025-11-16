@@ -30,7 +30,8 @@ void Webserver::setResourcePath()
 
 
 Webserver::Webserver(int port, int trigMode, int timeoutMS, bool optLinger)
-:m_port(port),m_timeout(timeoutMS), m_openLinger(optLinger)
+:m_port(port),m_timeout(timeoutMS), m_openLinger(optLinger),m_timer(new MinHeapTimer()), 
+m_threadsPool(new ThreadsPool()), m_epoller(new Epoller()) 
 {
     setResourcePath();
 
@@ -50,6 +51,7 @@ Webserver::~Webserver()
 {
     close(m_listenFd);
     m_isClose = true;
+    DbConnsPool::getInstance()->~DbConnsPool();
 }
 
 void Webserver::initEventMode(int trigMode)
@@ -90,6 +92,7 @@ void Webserver::run()
         if(m_timeout > 0)
         {
             // timeMS 得到下一个超时时间
+            timeMS = m_timer->getNextTick();
         }
 
         int eventCnt = m_epoller->wait(timeMS);
@@ -119,7 +122,9 @@ void Webserver::run()
             }
             else
             {
-                
+#ifdef debug
+        std::cout << "Event error!" << std::endl;
+#endif  
             }
         }
     }
@@ -131,7 +136,9 @@ void Webserver::sendError(int fd, const char* info)
     int len = send(fd, info, strlen(info), 0);
     if(len < 0)
     {
-
+#ifdef debug
+        std::cout << "send error to client[" << fd  << "]"<< std::endl;
+#endif 
     } 
     close(fd);
 }
@@ -141,6 +148,9 @@ void Webserver::closeConn(HttpConn* client)
     assert(client);
     m_epoller->removeFd(client->getFd());
     client->closeConn();
+#ifdef debug
+        std::cout << "close client [" << client->getFd() << "] connection." << std::endl;
+#endif 
 }
 
 void Webserver::addClnt(int fd, sockaddr_in addr)
@@ -150,10 +160,14 @@ void Webserver::addClnt(int fd, sockaddr_in addr)
     if(m_timeout > 0)
     {
         // 添加定时器
+        m_timer->add(fd, m_timeout, std::bind(&Webserver::closeConn, this, &m_users[fd]));
     }
 
     m_epoller->addFd(fd, EPOLLIN | m_clntEvent);
     setnoblock(fd);
+#ifdef debug
+        std::cout << "add client [" << fd << "] connection." << std::endl;
+#endif 
 }
 
 void Webserver::dealListen()
@@ -186,6 +200,7 @@ void Webserver::dealRead(HttpConn* client)
     extentTime(client);
 
     // 线程池添加任务
+    m_threadsPool->addTask(std::bind(&Webserver::onRead, this, client));
 }
 
 void Webserver::dealWrite(HttpConn* client)
@@ -193,6 +208,7 @@ void Webserver::dealWrite(HttpConn* client)
     assert(client);
     extentTime(client);
     // 线程池添加任务
+    m_threadsPool->addTask(std::bind(&Webserver::onWrite, this, client));
 }
 
 void Webserver::extentTime(HttpConn* client)
@@ -201,6 +217,7 @@ void Webserver::extentTime(HttpConn* client)
     if(m_timeout > 0)
     {
         // 调整时间
+        m_timer->adjust(client->getFd(), m_timeout);
     }
 }
 
@@ -269,6 +286,9 @@ bool Webserver::initSocket()
 
     if(m_port > 65535 || m_port < 1024)
     {
+#ifdef debug
+        std::cout << "Port:" << m_port << "error!" << std::endl;
+#endif
         return false;
     }
 
@@ -287,6 +307,10 @@ bool Webserver::initSocket()
     m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if(m_listenFd < 0)
     {
+#ifdef debug
+        std::cout << "Create socket error!" << std::endl;
+
+#endif
         return false;
     }
 
@@ -294,6 +318,9 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
+#ifdef debug
+        std::cout << "Init linger error!" << std::endl;
+#endif       
         return false;
     }
 
@@ -301,6 +328,9 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
+#ifdef debug
+        std::cout << "bind error!" << std::endl;
+#endif 
         return false;
     }
 
@@ -308,6 +338,9 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
+#ifdef debug
+        std::cout << "listen error!" << std::endl;
+#endif 
         return false;
     }
 
@@ -315,6 +348,9 @@ bool Webserver::initSocket()
     if(ret == 0)
     {
         close(m_listenFd);
+#ifdef debug
+        std::cout << "addFd error!" << std::endl;
+#endif 
         return false;
     }
 

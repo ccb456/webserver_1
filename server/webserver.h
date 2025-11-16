@@ -11,11 +11,14 @@
 
 #include "epoller.h"
 #include "../http/httpConn.h"
+#include "../timer/minHeapTimer.h"
+#include "../pool/sqlConnsPool/dbConnsPool.h"
+#include "../pool/threadsPool/threadsPool.h"
 
 
 class Webserver
 {
-
+public:
     Webserver(int port, int trigMode, int timeoutMS, bool optLinger);
     ~Webserver();
     void run();
@@ -57,11 +60,10 @@ private:
     uint32_t m_clntEvent;       // 客户端连接的 epoll 事件类型（如 EPOLLIN、EPOLLOUT、EPOLLET）
 
     /* 定时器 */
-
+    std::unique_ptr<MinHeapTimer> m_timer;
     /* 线程池 */
-
-    /* 连接池 */
-
+    std::unique_ptr<ThreadsPool> m_threadsPool;
+    
     std::unique_ptr<Epoller> m_epoller;
     std::unordered_map<int, HttpConn> m_users;      // 客户端连接映射表（fd -> HttpConn 对象）
 

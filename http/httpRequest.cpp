@@ -84,6 +84,9 @@ bool HttpRequest::parse(Buffer& buff)
         // 移动读指针,+2的含义是每行后面的 /r/n 需要跳过
         buff.advance(lineEnd + 2);
     }
+#ifdef debug
+        std::cout << m_mthod << " , " << m_path << " , " << m_version  << std::endl;
+#endif 
 
     return true;
 }
@@ -120,6 +123,10 @@ bool HttpRequest::parseRequstLine(const string& line)
         return true;
     }
 
+#ifdef debug
+        std::cout << "requestLine error!" << std::endl;
+#endif 
+
     return false;
 }
 
@@ -138,6 +145,7 @@ bool HttpRequest::parseHeader(const string& line)
         // 空行 → 请求头结束，切换到解析 body
         m_curState = CHECK_CONTENT;
     }
+
 
     return true;
 }
@@ -240,10 +248,12 @@ void HttpRequest::parseFromUrlEncoded()
 bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin)
 {
     if(name == " " || pwd == " ") return false;
+#ifdef debug
+        std::cout << "name: " << name << "password: " << pwd << std::endl;
+#endif 
 
-    MYSQL* mysql;
+    std::shared_ptr<MysqlConnection> mysql = DbConnsPool::getInstance()->getConnection();
 
-    SqlConnRAII tmp(&mysql, SqlConnPool::getIntence());
     assert(mysql);
 
     bool flag = !isLogin ? true : false;
@@ -251,17 +261,18 @@ bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin
     char sql[256] = { 0 };
 
     MYSQL_FIELD* fields = nullptr;
-    MYSQL_RES* res = nullptr;
-
+    
     snprintf(sql, 256, "SELECT username, password FROM user WHERE username='%s' LIMIT 1", name.c_str());
-
-    if(mysql_query(mysql, sql));
+    
+    MYSQL_RES* res = mysql->query(sql);
+    if(res == nullptr)
     {
-        mysql_free_result(res);
+#ifdef debug
+        std::cout << "mysql query error!" << std::endl;
+#endif 
         return false;
     }
-
-    res = mysql_store_result(mysql);
+    
     j = mysql_num_fields(res);
     fields = mysql_fetch_fields(res);
 
@@ -280,16 +291,16 @@ bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin
         }
     }
 
-    mysql_free_result(res);
-
     if(!isLogin && flag)
     {
         bzero(sql, 256);
         snprintf(sql, 256,"INSERT INTO user(username, password) VALUES('%s','%s')", name.c_str(), pwd.c_str());
-
-        if(mysql_query(mysql, sql))
+        if(mysql->update(sql))
         {
-            flag = false;
+#ifdef debug
+        std::cout << "insert into error!" << std::endl;
+#endif 
+            return false;
         }
     }
     return flag;
@@ -343,7 +354,7 @@ bool HttpRequest::isKeepAlive() const
 {
     if(m_header.count("Connection"))
     {
-        return m_header.find("Connection")->second == "keep-alive" && m_version == "1.1";
+        return m_header.find("Connection")->second == "Keep-Alive" && m_version == "1.1";
     }
 
     return false;
