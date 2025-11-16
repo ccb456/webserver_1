@@ -12,6 +12,7 @@
 #include <string>
 #include <atomic>
 #include <fstream>
+#include <algorithm>
 
 
 using std::cout;

@@ -1,12 +1,12 @@
 #include "httpRequest.h"
 
-const std::unordered_set<string> DEFAULT_HTML
+const std::unordered_set<string> HttpRequest::DEFAULT_HTML
 {
     "/index", "/register", "/login", "/welcome", "/video",
     "/picture",
 };
 
-const std::unordered_map<string, int> DEFAULT_HTML_TAG
+const std::unordered_map<string, int> HttpRequest::DEFAULT_HTML_TAG
 {
     {"/register.html", 0},
     {"/login.html", 1},

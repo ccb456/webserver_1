@@ -1,7 +1,7 @@
 #include "httpConn.h"
 
 const char* HttpConn::srcDir;
-std::atomic<int> HttpConn::userCount = 0;
+std::atomic<int> HttpConn::userCount;
 bool HttpConn::isET;
 
 HttpConn::HttpConn()
