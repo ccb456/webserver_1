@@ -1,39 +1,16 @@
 #include "webserver.h"
 
-void Webserver::setResourcePath()
-{
-    // 1. 将程序路径转换为绝对路径（如：/home/ccb/Code/project/webserver/build）
-    char exePath[1024];
-    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-    if (len == -1) 
-    {
-        perror("readlink failed");
-        exit(EXIT_FAILURE);
-    }
-    exePath[len] = '\0';
 
-    string root(exePath);
-
-    // 2. 剔除路径中的"build"目录（关键步骤）
-    size_t buildPos = root.find_last_of("/");
-    if (buildPos != std::string::npos) 
-    {
-        // 截取到"build"的前一级目录（如：/home/ccb/Code/project/webserver）
-        root = root.substr(0, buildPos);
-    }
-
-    // 3. 拼接资源目录（最终：/home/ccb/Code/project/webserver/resources）
-    root += "/resources/";
-
-    m_srcDir = root;
-}
 
 
 Webserver::Webserver(int port, int trigMode, int timeoutMS, bool optLinger)
 :m_port(port),m_timeout(timeoutMS), m_openLinger(optLinger),m_timer(new MinHeapTimer()), 
 m_threadsPool(new ThreadsPool()), m_epoller(new Epoller()) 
 {
-    setResourcePath();
+    m_srcDir = getSrcPath() + "/resources/";
+#ifdef DEBUG
+    std::cout << "[src:] " << m_srcDir << std::endl;
+#endif
 
     HttpConn::userCount = 0;
     HttpConn::srcDir = m_srcDir.c_str();
@@ -122,7 +99,7 @@ void Webserver::run()
             }
             else
             {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "Event error!" << std::endl;
 #endif  
             }
@@ -136,7 +113,7 @@ void Webserver::sendError(int fd, const char* info)
     int len = send(fd, info, strlen(info), 0);
     if(len < 0)
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "send error to client[" << fd  << "]"<< std::endl;
 #endif 
     } 
@@ -148,7 +125,7 @@ void Webserver::closeConn(HttpConn* client)
     assert(client);
     m_epoller->removeFd(client->getFd());
     client->closeConn();
-#ifdef debug
+#ifdef DEBUG
         std::cout << "close client [" << client->getFd() << "] connection." << std::endl;
 #endif 
 }
@@ -165,7 +142,7 @@ void Webserver::addClnt(int fd, sockaddr_in addr)
 
     m_epoller->addFd(fd, EPOLLIN | m_clntEvent);
     setnoblock(fd);
-#ifdef debug
+#ifdef DEBUG
         std::cout << "add client [" << fd << "] connection." << std::endl;
 #endif 
 }
@@ -286,7 +263,7 @@ bool Webserver::initSocket()
 
     if(m_port > 65535 || m_port < 1024)
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "Port:" << m_port << "error!" << std::endl;
 #endif
         return false;
@@ -307,7 +284,7 @@ bool Webserver::initSocket()
     m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if(m_listenFd < 0)
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "Create socket error!" << std::endl;
 
 #endif
@@ -318,7 +295,7 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
-#ifdef debug
+#ifdef DEBUG
         std::cout << "Init linger error!" << std::endl;
 #endif       
         return false;
@@ -328,7 +305,7 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
-#ifdef debug
+#ifdef DEBUG
         std::cout << "bind error!" << std::endl;
 #endif 
         return false;
@@ -338,7 +315,7 @@ bool Webserver::initSocket()
     if(ret < 0)
     {
         close(m_listenFd);
-#ifdef debug
+#ifdef DEBUG
         std::cout << "listen error!" << std::endl;
 #endif 
         return false;
@@ -348,7 +325,7 @@ bool Webserver::initSocket()
     if(ret == 0)
     {
         close(m_listenFd);
-#ifdef debug
+#ifdef DEBUG
         std::cout << "addFd error!" << std::endl;
 #endif 
         return false;

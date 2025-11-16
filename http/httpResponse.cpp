@@ -70,10 +70,16 @@ void HttpResponse::makeResponse(Buffer& buff)
     // 1.检查请求的文件是否存在，是否为目录，是否有权限读
     if(stat((m_strDir + m_path).data(), &m_fileStat) < 0 || S_ISDIR(m_fileStat.st_mode))
     {
+#ifdef DEBUG
+    std::cout << (m_strDir + m_path) << " 文件不存在或者为目录" << std::endl;
+#endif
         m_code = 404;   // 文件不存在或者为目录
     }
     else if(!(m_fileStat.st_mode & S_IROTH))
     {
+#ifdef DEBUG
+    std::cout << (m_strDir + m_path) << " 文件没有读权限" << std::endl;
+#endif
         m_code = 403;   // 没有读权限
     }
     else if(m_code == -1)
@@ -131,8 +137,8 @@ void HttpResponse::addHeader(Buffer& buff)
     buff.insert("Connection: ");
     if(m_isKeepAlive)
     {
-        buff.insert("Keep-Alive\r\n");
-        buff.insert("Keep-Alive: max=6, timeout=120\r\n");  // 长连接参数
+        buff.insert("keep-alive\r\n");
+        buff.insert("keep-alive: max=6, timeout=120\r\n");  // 长连接参数
     }
     else
     {

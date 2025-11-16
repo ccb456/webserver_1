@@ -26,7 +26,7 @@ void HttpConn::init(int fd, const sockaddr_in& addr)
     m_writeBuff.clear();
     m_isClose = false;
 
-#ifdef debug
+#ifdef DEBUG
         std::cout << "Http init for client [" << fd << "]." << std::endl;
 #endif 
 
@@ -109,7 +109,7 @@ ssize_t HttpConn::writeToClnt(int* saveError)
         {
             // 响应头未写完，更新响应头
             m_iov[0].iov_base = (uint8_t*)m_iov[0].iov_base + len;
-            m_iov[1].iov_base -= len;
+            m_iov[0].iov_len -= len;
             m_writeBuff.advance(len);
         }
         

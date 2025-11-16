@@ -19,6 +19,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/pool/threadsPool   # 线程池头文件
     ${PROJECT_SOURCE_DIR}/timer    # 定时器模块头文件
     ${PROJECT_SOURCE_DIR}/server   # 服务器模块头文件
+    ${PROJECT_SOURCE_DIR}/utils    # 工具模块头文件
 )
 
 # 收集所有源文件（.cpp）
@@ -34,10 +35,14 @@ set(SOURCES
     ${PROJECT_SOURCE_DIR}/timer/minHeapTimer.cpp    
     ${PROJECT_SOURCE_DIR}/server/epoller.cpp
     ${PROJECT_SOURCE_DIR}/server/webserver.cpp
+    ${PROJECT_SOURCE_DIR}/utils/pathInfo.cpp
 )
 
 # 生成可执行文件
 add_executable(webserver ${SOURCES})
+
+# 强制为目标定义 DEBUG 宏（所有模式生效）
+# target_compile_definitions(webserver PRIVATE DEBUG)
 
 
 # 链接依赖库（Web 服务器常用库）

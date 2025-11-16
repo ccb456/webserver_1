@@ -28,7 +28,7 @@ DbConnsPool::~DbConnsPool()
     }
     m_connCnt = 0;
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "ConnectionsPool is clsoed..." << std::endl;
 
 #endif
@@ -41,42 +41,13 @@ DbConnsPool* DbConnsPool::getInstance()
     return &pool;
 }
 
-string DbConnsPool::getConfigPath()
-{
-    // 1. 将程序路径转换为绝对路径（如：/home/ccb/Code/project/webserver/build）
-    char exePath[1024];
-    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-    if (len == -1) 
-    {
-#ifdef debug
-    std::cout << "ConnectionsPool getConfigPath readlink failed..." << std::endl;
-
-#endif
-        perror("readlink failed");
-        exit(EXIT_FAILURE);
-    }
-    exePath[len] = '\0';
-
-    string root(exePath);
-
-    // 2. 剔除路径中的"build"目录（关键步骤）
-    size_t buildPos = root.find_last_of("/");
-    if (buildPos != std::string::npos) 
-    {
-        // 截取到"build"的前一级目录（如：/home/ccb/Code/project/webserver）
-        root = root.substr(0, buildPos);
-    }
-
-    // 3. 拼接资源目录（最终：/home/ccb/Code/project/webserver/resources）
-    root += "/config/connPool.conf";
-
-    return root;
-}
-
 bool DbConnsPool::loadConfigFile()
 {
-    configPath = getConfigPath();
-    std::ifstream ifs(configPath);
+    m_configPath = getConfigPath() + "connPool.conf";
+#ifdef DEBUG
+    std::cout << "[configParh:] " << m_configPath << std::endl;
+#endif
+    std::ifstream ifs(m_configPath);
 
     if(ifs.is_open())
     {
@@ -148,7 +119,7 @@ bool DbConnsPool::loadConfigFile()
         return true;
     }
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "ConnectionsPool configFile open failed..." << std::endl;
 
 #endif
@@ -159,14 +130,14 @@ bool DbConnsPool::loadConfigFile()
 DbConnsPool::DbConnsPool()
 {
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "DbConnsPool start init..." << std::endl;
     std::cout << "DbConnsPool is loading Config File..." << std::endl;
 #endif
     // 加载配置文件
     if(!loadConfigFile())
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "DbConnsPool failed to load configuration file..." << std::endl;
 #endif
         return;
@@ -192,7 +163,7 @@ DbConnsPool::DbConnsPool()
     m_produceThread = std::thread(std::bind(&DbConnsPool::produceConnTask, this));
     m_scannerThread = std::thread(std::bind(&DbConnsPool::scannerConnTask, this));
 
-#ifdef debug
+#ifdef DEBUG
         std::cout << "DbConnsPool initialization successful ..." << std::endl;
 #endif
 
@@ -243,7 +214,7 @@ shared_ptr<MysqlConnection> DbConnsPool::getConnection()
         {
             if(m_connQueue.empty())
             {
-#ifdef debug
+#ifdef DEBUG
                 std::cout << "获取空闲连接超时了......" << std::endl;
 #endif
                 return nullptr;

@@ -14,6 +14,8 @@
 #include <fstream>
 #include <algorithm>
 
+#include "../utils/pathInfo.h"
+
 
 using std::cout;
 using std::endl;
@@ -42,7 +44,6 @@ public:
 
 private:
     bool loadConfigFile();
-    static string getConfigPath();
 
     void work();
     void manager();

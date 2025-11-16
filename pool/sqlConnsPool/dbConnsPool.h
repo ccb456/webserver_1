@@ -15,6 +15,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include "../utils/pathInfo.h"
+
 using std::string;
 using std::mutex;
 using std::queue;
@@ -26,9 +28,6 @@ public:
     static DbConnsPool* getInstance();
     shared_ptr<MysqlConnection> getConnection();
     ~DbConnsPool();
-
-    static string getConfigPath();
-
 
 private:
     DbConnsPool();
@@ -52,7 +51,7 @@ private:
     int m_maxSize;
     int m_maxIdleTime;    // 连接池最大空闲时间
     int m_connTimeout;    // 连接池获取连接的超时时间
-    string configPath;
+    string m_configPath;
 
     queue<MysqlConnection*> m_connQueue;
     mutex m_queueMtx;

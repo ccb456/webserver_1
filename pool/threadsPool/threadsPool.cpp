@@ -1,41 +1,12 @@
 #include "threadsPool.h"
 
-string ThreadsPool::getConfigPath()
-{
-    // 1. 将程序路径转换为绝对路径（如：/home/ccb/Code/project/webserver/build）
-    char exePath[1024];
-    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-    if (len == -1) 
-    {
-#ifdef debug
-    std::cout << "ThreadsPool getConfigPath readlink failed..." << std::endl;
-
-#endif
-        perror("readlink failed");
-        exit(EXIT_FAILURE);
-    }
-    exePath[len] = '\0';
-
-    string root(exePath);
-
-    // 2. 剔除路径中的"build"目录（关键步骤）
-    size_t buildPos = root.find_last_of("/");
-    if (buildPos != std::string::npos) 
-    {
-        // 截取到"build"的前一级目录（如：/home/ccb/Code/project/webserver）
-        root = root.substr(0, buildPos);
-    }
-
-    // 3. 拼接资源目录（最终：/home/ccb/Code/project/webserver/resources）
-    root += "/config/threadPool.conf";
-
-    return root;
-}
-
 
 bool ThreadsPool::loadConfigFile()
 {
-    m_configPath = getConfigPath();
+    m_configPath = getConfigPath() + "threadPool.conf";
+#ifdef DEBUG
+    std::cout << "[configParh:] " << m_configPath << std::endl;
+#endif
     std::ifstream ifs(m_configPath);
 
     if(ifs.is_open())
@@ -84,7 +55,7 @@ bool ThreadsPool::loadConfigFile()
         return true;
     }
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "ConnectionsPool configFile open failed..." << std::endl;
 
 #endif
@@ -97,14 +68,14 @@ ThreadsPool::ThreadsPool()
 :m_busy(0), m_alive(0),m_configPath(""),m_exitCnt(0),m_isStop(false),m_maxNum(0),m_minNum(0),m_step(0)
 {
 
-    #ifdef debug
+    #ifdef DEBUG
     std::cout << "ThreadsPool start init..." << std::endl;
     std::cout << "ThreadsPool is loading Config File..." << std::endl;
 #endif
     // 加载配置文件
     if(!loadConfigFile())
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "ThreadsPool failed to load configuration file..." << std::endl;
 #endif
         return;
@@ -117,7 +88,7 @@ ThreadsPool::ThreadsPool()
 
     m_mangerThread = std::thread(std::bind(&ThreadsPool::manager, this));
 
-#ifdef debug
+#ifdef DEBUG
         std::cout << "ThreadsPool is running..." << std::endl;
 #endif
 }
@@ -149,7 +120,7 @@ ThreadsPool::~ThreadsPool()
         while(!m_tasksQue.empty()) m_tasksQue.pop();
     }
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "ThreadPool destructed: all workers exited\n";
 #endif
 
@@ -206,7 +177,7 @@ bool ThreadsPool::tryConsumeExit()
 void ThreadsPool::work()
 {
     m_alive.fetch_add(1);
-#ifdef debug
+#ifdef DEBUG
     std::cout << "worker start, id=" << std::this_thread::get_id() << "\n";
 #endif
 
@@ -224,7 +195,7 @@ void ThreadsPool::work()
 
             // 优先响应停止：若 stop 且 无任务，则退出
             if (m_isStop.load() && m_tasksQue.empty()) {
-#ifdef debug
+#ifdef DEBUG
                 std::cout << "worker stopping (stop flag), id=" << std::this_thread::get_id() << "\n";
 #endif
                 break;
@@ -236,7 +207,7 @@ void ThreadsPool::work()
                 if (tryConsumeExit()) 
                 {
                     // 成功消费 exit token，准备退出（不要在这里直接 decrement alive；统一在退出处 decrement）
-#ifdef debug
+#ifdef DEBUG
                     std::cout << "worker exiting due to shrink request, id=" << std::this_thread::get_id() << "\n";
 #endif
                     break;
@@ -266,7 +237,7 @@ void ThreadsPool::work()
         catch (...) 
         {
             // 捕获任务异常，避免线程崩溃
-#ifdef debug
+#ifdef DEBUG
             std::cerr << "Task threw an exception in thread " << std::this_thread::get_id() << "\n";
 #endif
         }
@@ -277,7 +248,7 @@ void ThreadsPool::work()
     m_alive.fetch_sub(1);
     m_mangerCV.notify_one();
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "worker exit, id=" << std::this_thread::get_id() << "\n";
 #endif
 
@@ -285,7 +256,7 @@ void ThreadsPool::work()
 
 void ThreadsPool::manager()
 {
-#ifdef debug
+#ifdef DEBUG
     std::cout << "manager start\n";
 #endif
 
@@ -310,7 +281,7 @@ void ThreadsPool::manager()
                 // 直接创建并 detach worker；worker 会在入口处自增 alive
                 std::thread(std::bind(&ThreadsPool::work, this)).detach();
             }
-#ifdef debug
+#ifdef DEBUG
             std::cout << "manager added " << canAdd << " workers, alive now ~ " << m_alive.load() << "\n";
 #endif
         }
@@ -322,14 +293,14 @@ void ThreadsPool::manager()
             m_exitCnt.fetch_add(canRemove);
             // 通知 worker 去消费 exit token（notify_all 更保险）
             m_notEmpty.notify_all();
-#ifdef debug
-            std::cout << "manager requested shrink by " << canRemove << ", exitCount=" << exitCount.load() << "\n";
+#ifdef DEBUG
+            std::cout << "manager requested shrink by " << canRemove << ", exitCount=" << m_exitCnt.load() << "\n";
 #endif
         }
         // else 状态稳定，下一轮检查
     }
 
-#ifdef debug
+#ifdef DEBUG
     std::cout << "manager exit\n";
 #endif  
 }

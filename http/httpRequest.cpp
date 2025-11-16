@@ -84,8 +84,8 @@ bool HttpRequest::parse(Buffer& buff)
         // 移动读指针,+2的含义是每行后面的 /r/n 需要跳过
         buff.advance(lineEnd + 2);
     }
-#ifdef debug
-        std::cout << m_mthod << " , " << m_path << " , " << m_version  << std::endl;
+#ifdef DEBUG
+        std::cout << "[ "<< m_mthod << "  " << m_path << "  " << m_version  << "]" << std::endl;
 #endif 
 
     return true;
@@ -123,7 +123,7 @@ bool HttpRequest::parseRequstLine(const string& line)
         return true;
     }
 
-#ifdef debug
+#ifdef DEBUG
         std::cout << "requestLine error!" << std::endl;
 #endif 
 
@@ -136,7 +136,7 @@ bool HttpRequest::parseHeader(const string& line)
     std::regex patten("^([^:]*): ?(.*)$");
     std::smatch subMath;
 
-    if(!std::regex_match(line, subMath, patten))
+    if(std::regex_match(line, subMath, patten))
     {
         m_header[subMath[1]] = subMath[2];
     }
@@ -146,12 +146,14 @@ bool HttpRequest::parseHeader(const string& line)
         m_curState = CHECK_CONTENT;
     }
 
-
     return true;
 }
 
 bool HttpRequest::parseBody(const string& line)
 {
+#ifdef DEBUG
+    std::cout << "[post content] " << line << std::endl;
+#endif
     m_body = line;
     // 处理post提交的数据
     parsePostReq();
@@ -243,13 +245,27 @@ void HttpRequest::parseFromUrlEncoded()
                 break;
         }
     }
+
+    assert(j <= i);
+    // 处理最后一组键值对
+    if(m_userInfo.count(key) == 0 && j < i)
+    {
+        value = m_body.substr(j, i - j);
+        m_userInfo[key] = value;
+    }
 }
 
 bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin)
 {
-    if(name == " " || pwd == " ") return false;
-#ifdef debug
-        std::cout << "name: " << name << "password: " << pwd << std::endl;
+    if(name.empty() || pwd.empty() || name == " " || pwd == " " )
+    {
+#ifdef DEBUG
+        std::cout << "name or password error " << std::endl;
+#endif 
+        return false;
+    } 
+#ifdef DEBUG
+        std::cout << "name: " << name << " password: " << pwd << std::endl;
 #endif 
 
     std::shared_ptr<MysqlConnection> mysql = DbConnsPool::getInstance()->getConnection();
@@ -257,25 +273,19 @@ bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin
     assert(mysql);
 
     bool flag = !isLogin ? true : false;
-    size_t j = 0;
     char sql[256] = { 0 };
 
-    MYSQL_FIELD* fields = nullptr;
-    
     snprintf(sql, 256, "SELECT username, password FROM user WHERE username='%s' LIMIT 1", name.c_str());
     
     MYSQL_RES* res = mysql->query(sql);
     if(res == nullptr)
     {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "mysql query error!" << std::endl;
 #endif 
         return false;
     }
     
-    j = mysql_num_fields(res);
-    fields = mysql_fetch_fields(res);
-
     while(MYSQL_ROW row = mysql_fetch_row(res))
     {
         string passwd(row[1]);
@@ -295,9 +305,9 @@ bool HttpRequest::userVerify(const string& name, const string& pwd, bool isLogin
     {
         bzero(sql, 256);
         snprintf(sql, 256,"INSERT INTO user(username, password) VALUES('%s','%s')", name.c_str(), pwd.c_str());
-        if(mysql->update(sql))
+        if(!mysql->update(sql))
         {
-#ifdef debug
+#ifdef DEBUG
         std::cout << "insert into error!" << std::endl;
 #endif 
             return false;
@@ -354,7 +364,7 @@ bool HttpRequest::isKeepAlive() const
 {
     if(m_header.count("Connection"))
     {
-        return m_header.find("Connection")->second == "Keep-Alive" && m_version == "1.1";
+        return m_header.find("Connection")->second == "keep-alive" && m_version == "1.1";
     }
 
     return false;

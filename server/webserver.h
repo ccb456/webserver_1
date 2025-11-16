@@ -14,6 +14,7 @@
 #include "../timer/minHeapTimer.h"
 #include "../pool/sqlConnsPool/dbConnsPool.h"
 #include "../pool/threadsPool/threadsPool.h"
+#include "../utils/pathInfo.h"
 
 
 class Webserver
@@ -44,7 +45,7 @@ private:
     void onWrite(HttpConn* client);
     void onProcess(HttpConn* client);
 
-    void setResourcePath();
+    string getResourcesPath();
 
 
 private:
